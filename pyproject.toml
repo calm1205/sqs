@@ -1,0 +1,19 @@
+[project]
+name = "sqs-local"
+version = "0.1.0"
+description = "Local SQS service with moto and FastAPI"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.115.6",
+    "uvicorn[standard]>=0.34.0",
+    "moto[sqs]>=5.0.26",
+    "boto3>=1.35.86",
+    "pydantic>=2.10.4",
+]
+
+[dependency-groups]
+dev = [
+    "boto3-stubs[sqs]>=1.35.86",
+    "mypy>=1.14.1",
+    "ruff>=0.8.6",
+]
