@@ -9,6 +9,7 @@ dependencies = [
     "boto3>=1.35.86",
     "pydantic>=2.10.4",
     "moto[server,sqs]>=5.0.26",
+    "celery[sqs]>=5.4.0",
 ]
 
 [dependency-groups]
@@ -19,5 +20,10 @@ dev = [
 ]
 
 [tool.mypy]
+strict = true
 explicit_package_bases = true
 mypy_path = "api:worker"
+
+[[tool.mypy.overrides]]
+module = "celery.*"
+ignore_missing_imports = true
