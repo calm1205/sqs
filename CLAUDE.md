@@ -4,6 +4,7 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## MUST
 
+- Use serena.
 - Summarize the changes in 1–2 sentences.
 - Do not scan parents or hidden dirs.
 - Run `make lint` after change code.

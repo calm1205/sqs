@@ -1,6 +1,7 @@
 # Python
 __pycache__/
 .mypy_cache/
+.ruff_cache/
 *.py[cod]
 *$py.class
 *.so
@@ -18,6 +19,7 @@ ENV/
 # IDE
 .idea/
 .vscode/
+.serena/
 *.swp
 *.swo
 
