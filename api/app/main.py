@@ -12,7 +12,7 @@ from pydantic import BaseModel
 SQS_ENDPOINT = os.getenv("SQS_ENDPOINT", "http://sqs:5000")
 AWS_REGION = os.getenv("AWS_REGION", "ap-northeast-1")
 QUEUE_NAME = "celery"
-DLQ_NAME = "celery-dlq"
+DEAD_LETTER_QUEUE_NAME = "celery-dead-letter-queue"
 MAX_RECEIVE_COUNT = 3
 
 sqs_client: SQSClient = boto3.client(
@@ -25,16 +25,18 @@ sqs_client: SQSClient = boto3.client(
 
 
 def setup_queues() -> None:
-    """メインキューとDLQをセットアップする。"""
-    # DLQを作成
-    dlq_response = sqs_client.create_queue(QueueName=DLQ_NAME)
-    dlq_url = dlq_response["QueueUrl"]
-
-    # DLQのARNを取得
-    dlq_attrs = sqs_client.get_queue_attributes(
-        QueueUrl=dlq_url, AttributeNames=["QueueArn"]
+    """メインキューとDead Letter Queueをセットアップする。"""
+    # Dead Letter Queueを作成
+    dead_letter_queue_response = sqs_client.create_queue(
+        QueueName=DEAD_LETTER_QUEUE_NAME
     )
-    dlq_arn = dlq_attrs["Attributes"]["QueueArn"]
+    dead_letter_queue_url = dead_letter_queue_response["QueueUrl"]
+
+    # Dead Letter QueueのARNを取得
+    dead_letter_queue_attrs = sqs_client.get_queue_attributes(
+        QueueUrl=dead_letter_queue_url, AttributeNames=["QueueArn"]
+    )
+    dead_letter_queue_arn = dead_letter_queue_attrs["Attributes"]["QueueArn"]
 
     # メインキューをRedrive Policy付きで作成
     sqs_client.create_queue(
@@ -42,7 +44,7 @@ def setup_queues() -> None:
         Attributes={
             "RedrivePolicy": json.dumps(
                 {
-                    "deadLetterTargetArn": dlq_arn,
+                    "deadLetterTargetArn": dead_letter_queue_arn,
                     "maxReceiveCount": str(MAX_RECEIVE_COUNT),
                 }
             )
@@ -97,15 +99,17 @@ async def create_task(request: TaskRequest) -> dict[str, str]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/dlq")
-async def list_dlq_messages() -> dict[str, Any]:
-    """DLQ内のメッセージ一覧を取得する。"""
+@app.get("/dead_letter_queue")
+async def list_dead_letter_queue_messages() -> dict[str, Any]:
+    """Dead Letter Queue内のメッセージ一覧を取得する。"""
     try:
-        dlq_url = sqs_client.get_queue_url(QueueName=DLQ_NAME)["QueueUrl"]
+        dead_letter_queue_url = sqs_client.get_queue_url(
+            QueueName=DEAD_LETTER_QUEUE_NAME
+        )["QueueUrl"]
 
         # メッセージを取得（最大10件、削除はしない）
         response = sqs_client.receive_message(
-            QueueUrl=dlq_url,
+            QueueUrl=dead_letter_queue_url,
             MaxNumberOfMessages=10,
             VisibilityTimeout=0,  # すぐに再取得可能にする
             AttributeNames=["All"],
@@ -129,17 +133,19 @@ async def list_dlq_messages() -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/dlq/reprocess")
-async def reprocess_dlq_messages() -> dict[str, Any]:
-    """DLQ内の全メッセージをメインキューに再送信する。"""
+@app.post("/dead_letter_queue/reprocess")
+async def reprocess_dead_letter_queue_messages() -> dict[str, Any]:
+    """Dead Letter Queue内の全メッセージをメインキューに再送信する。"""
     try:
-        dlq_url = sqs_client.get_queue_url(QueueName=DLQ_NAME)["QueueUrl"]
+        dead_letter_queue_url = sqs_client.get_queue_url(
+            QueueName=DEAD_LETTER_QUEUE_NAME
+        )["QueueUrl"]
 
         reprocessed = 0
         while True:
-            # DLQからメッセージを取得
+            # Dead Letter Queueからメッセージを取得
             response = sqs_client.receive_message(
-                QueueUrl=dlq_url,
+                QueueUrl=dead_letter_queue_url,
                 MaxNumberOfMessages=10,
                 VisibilityTimeout=30,
             )
@@ -157,15 +163,15 @@ async def reprocess_dlq_messages() -> dict[str, Any]:
                 # タスクを再送信
                 celery_app.send_task(task_name, args=task_args)
 
-                # DLQからメッセージを削除
+                # Dead Letter Queueからメッセージを削除
                 sqs_client.delete_message(
-                    QueueUrl=dlq_url,
+                    QueueUrl=dead_letter_queue_url,
                     ReceiptHandle=msg["ReceiptHandle"],
                 )
                 reprocessed += 1
 
         return {
-            "message": "DLQ messages reprocessed",
+            "message": "Dead letter queue messages reprocessed",
             "reprocessed_count": reprocessed,
         }
     except Exception as e:
