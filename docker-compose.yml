@@ -1,8 +1,8 @@
 services:
   api:
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api/Dockerfile
     ports:
       - "8000:8000"
     environment:
@@ -16,12 +16,12 @@ services:
           path: ./api/app
           target: /app/app
         - action: rebuild
-          path: ./api/pyproject.toml
+          path: ./pyproject.toml
 
   worker:
     build:
-      context: ./worker
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: worker/Dockerfile
     environment:
       - PYTHONUNBUFFERED=1
       - SQS_ENDPOINT=http://sqs:5000
@@ -36,12 +36,12 @@ services:
           path: ./worker/app
           target: /app/app
         - action: rebuild
-          path: ./worker/pyproject.toml
+          path: ./pyproject.toml
 
   sqs:
     build:
-      context: ./sqs
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: sqs/Dockerfile
     ports:
       - "5001:5000"
     environment:
@@ -49,4 +49,4 @@ services:
     develop:
       watch:
         - action: rebuild
-          path: ./sqs/pyproject.toml
+          path: ./pyproject.toml
