@@ -22,4 +22,5 @@ app.include_router(messages.router)
 
 @app.get("/health")
 async def health_check():
+    """サービスの稼働状態を確認するヘルスチェック。"""
     return {"status": "healthy"}

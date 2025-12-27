@@ -8,6 +8,7 @@ router = APIRouter(prefix="/messages", tags=["messages"])
 
 @router.post("")
 async def send_message(request: SendMessageRequest):
+    """SQSキューにメッセージを送信する。"""
     try:
         response = get_sqs_client().send_message(
             QueueUrl=request.queue_url,
@@ -28,6 +29,7 @@ async def receive_messages(
     max_number_of_messages: int = 1,
     wait_time_seconds: int = 0,
 ):
+    """SQSキューからメッセージを受信する。"""
     try:
         response = get_sqs_client().receive_message(
             QueueUrl=queue_url,
@@ -52,6 +54,7 @@ async def receive_messages(
 
 @router.delete("")
 async def delete_message(request: DeleteMessageRequest):
+    """受信ハンドルを使用してSQSキューからメッセージを削除する。"""
     try:
         get_sqs_client().delete_message(
             QueueUrl=request.queue_url,
