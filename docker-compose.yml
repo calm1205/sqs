@@ -1,18 +1,54 @@
 services:
-  sqs-api:
+  api:
     build:
-      context: .
+      context: ./api
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    environment:
+      - SQS_ENDPOINT=http://sqs:8080
+      - AWS_REGION=ap-northeast-1
+    depends_on:
+      - sqs
+    develop:
+      watch:
+        - action: sync
+          path: ./api/app
+          target: /app/app
+        - action: rebuild
+          path: ./api/pyproject.toml
+
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    environment:
+      - SQS_ENDPOINT=http://sqs:8080
+      - AWS_REGION=ap-northeast-1
+      - QUEUE_NAME=default-queue
+      - POLL_INTERVAL=5
+    depends_on:
+      - sqs
+    develop:
+      watch:
+        - action: sync
+          path: ./worker/app
+          target: /app/app
+        - action: rebuild
+          path: ./worker/pyproject.toml
+
+  sqs:
+    build:
+      context: ./sqs
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8000"
     environment:
       - AWS_DEFAULT_REGION=ap-northeast-1
     develop:
       watch:
         - action: sync
-          path: ./app
+          path: ./sqs/app
           target: /app/app
         - action: rebuild
-          path: ./pyproject.toml
-        - action: rebuild
-          path: ./uv.lock
+          path: ./sqs/pyproject.toml
