@@ -1,6 +1,12 @@
 import os
 
 from celery import Celery
+from celery.app.task import Task
+
+# celery-typesでジェネリック型を使用するためのmonkey patch
+Task.__class_getitem__ = classmethod(  # type: ignore[attr-defined]
+    lambda cls, *args, **kwargs: cls
+)
 
 SQS_ENDPOINT = os.getenv("SQS_ENDPOINT", "http://localhost:5000")
 AWS_REGION = os.getenv("AWS_REGION", "ap-northeast-1")

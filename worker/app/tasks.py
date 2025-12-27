@@ -1,11 +1,12 @@
 import time
-from typing import Any
+
+from celery import Task
 
 from app.celery import app
 
 
-@app.task(bind=True)  # type: ignore[untyped-decorator]
-def process_task(self: Any, payload: str) -> dict[str, str]:
+@app.task(bind=True)
+def process_task(self: Task[[str], dict[str, str]], payload: str) -> dict[str, str]:
     """タスクを処理する。"""
     print(f"Processing task: {payload}")
     time.sleep(1)  # 処理のシミュレーション
