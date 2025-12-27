@@ -7,4 +7,4 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv venv && uv sync --frozen --no-dev
 
-COPY api/app ./app
+COPY api/main.py ./

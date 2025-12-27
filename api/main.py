@@ -90,7 +90,7 @@ async def health_check() -> dict[str, str]:
 async def create_task(request: TaskRequest) -> dict[str, str]:
     """Celeryタスクを作成してキューに送信する。"""
     try:
-        result = celery_app.send_task("app.tasks.process_task", args=[request.payload])
+        result = celery_app.send_task("tasks.process_task", args=[request.payload])
         return {
             "message": "Task created",
             "task_id": result.id,
@@ -158,7 +158,7 @@ async def reprocess_dead_letter_queue_messages() -> dict[str, Any]:
                 # メッセージ本文からCeleryタスクのペイロードを抽出して再実行
                 body = json.loads(msg["Body"])
                 task_args = body.get("args", [])
-                task_name = body.get("task", "app.tasks.process_task")
+                task_name = body.get("task", "tasks.process_task")
 
                 # タスクを再送信
                 celery_app.send_task(task_name, args=task_args)

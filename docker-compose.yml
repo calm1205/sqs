@@ -3,18 +3,19 @@ services:
     build:
       context: .
       dockerfile: api/Dockerfile
-    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uv run uvicorn main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     env_file:
       - .env
     depends_on:
-      - sqs
+      sqs:
+        condition: service_healthy
     develop:
       watch:
         - action: sync
-          path: ./api/app
-          target: /app/app
+          path: ./api/main.py
+          target: /app/main.py
         - action: rebuild
           path: ./pyproject.toml
 
@@ -22,16 +23,20 @@ services:
     build:
       context: .
       dockerfile: worker/Dockerfile
-    command: uv run celery -A app.celery worker --loglevel=info
+    command: uv run celery -A celery_app worker --loglevel=info
     env_file:
       - .env
     depends_on:
-      - sqs
+      sqs:
+        condition: service_healthy
     develop:
       watch:
         - action: sync
-          path: ./worker/app
-          target: /app/app
+          path: ./worker/celery_app.py
+          target: /app/celery_app.py
+        - action: sync
+          path: ./worker/tasks.py
+          target: /app/tasks.py
         - action: rebuild
           path: ./pyproject.toml
 
@@ -41,9 +46,15 @@ services:
       dockerfile: sqs/Dockerfile
     command: uv run moto_server -H 0.0.0.0 -p 5000
     ports:
-      - "5001:5000"
+      - "5000:5000"
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/moto-api/"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     develop:
       watch:
         - action: rebuild

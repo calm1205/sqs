@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code when working with this repository.
 
+## MUST
+
+- Summarize the changes in 1–2 sentences.
+- Do not scan parents or hidden dirs.
+- Run `make lint` after change code.
+
 ## Project Overview
 
 Local SQS service using moto and Celery for async task processing.
@@ -36,16 +42,14 @@ uv sync
 ```
 ├── api/
 │   ├── Dockerfile
-│   └── app/
-│       └── main.py          # FastAPI application
+│   └── main.py              # FastAPI application
 ├── worker/
 │   ├── Dockerfile
-│   └── app/
-│       ├── celery.py        # Celery app configuration
-│       └── tasks.py         # Celery tasks
+│   ├── celery_app.py        # Celery app configuration
+│   └── tasks.py             # Celery tasks
 ├── sqs/
 │   └── Dockerfile           # moto_server
-├── pyproject.toml           # Project dependencies (root)
+├── pyproject.toml
 ├── uv.lock
 ├── docker-compose.yml
 ├── Makefile

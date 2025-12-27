@@ -41,7 +41,7 @@ make lint
 |----------|--------|------|
 | api | 8000 | FastAPI アプリケーション |
 | worker | - | Celery ワーカー |
-| sqs | 5001 | moto_server (SQSモック) |
+| sqs | 5000 | moto_server (SQSモック) |
 
 ## エンドポイント
 

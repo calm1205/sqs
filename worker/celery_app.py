@@ -33,4 +33,5 @@ app.conf.update(
     task_acks_late=True,
 )
 
-app.autodiscover_tasks(["app"])
+# タスクを自動検出
+import tasks  # noqa: E402, F401

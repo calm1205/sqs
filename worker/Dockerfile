@@ -7,4 +7,4 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv venv && uv sync --frozen --no-dev
 
-COPY worker/app ./app
+COPY worker/celery_app.py worker/tasks.py ./
