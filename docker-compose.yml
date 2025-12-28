@@ -6,11 +6,14 @@ services:
     command: uv run uvicorn main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
+    environment:
+      - SQS_ENDPOINT=http://sqs:4566
+      - AWS_REGION=ap-northeast-1
+      - AWS_ACCESS_KEY_ID=testing
+      - AWS_SECRET_ACCESS_KEY=testing
+      - AWS_ACCOUNT_ID=000000000000
     env_file:
       - .env
-    environment:
-      # ローカルのmoto(SQS)を使うためのエンドポイントを明示
-      SQS_ENDPOINT: ${SQS_ENDPOINT:-http://sqs:5000}
     depends_on:
       sqs:
         condition: service_healthy
@@ -27,11 +30,14 @@ services:
       context: .
       dockerfile: worker/Dockerfile
     command: uv run celery -A celery_app worker --loglevel=info
+    environment:
+      - SQS_ENDPOINT=http://sqs:4566
+      - AWS_REGION=ap-northeast-1
+      - AWS_ACCESS_KEY_ID=testing
+      - AWS_SECRET_ACCESS_KEY=testing
+      - AWS_ACCOUNT_ID=000000000000
     env_file:
       - .env
-    environment:
-      # ローカルのmoto(SQS)を使うためのエンドポイントを明示
-      SQS_ENDPOINT: ${SQS_ENDPOINT:-http://sqs:5000}
     depends_on:
       sqs:
         condition: service_healthy
@@ -49,21 +55,17 @@ services:
           path: ./pyproject.toml
 
   sqs:
-    build:
-      context: .
-      dockerfile: sqs/Dockerfile
-    command: uv run moto_server -H 0.0.0.0 -p 5000
+    image: localstack/localstack:latest
+    environment:
+      - SERVICES=sqs
+      - DEFAULT_REGION=ap-northeast-1
+      - AWS_ACCESS_KEY_ID=testing
+      - AWS_SECRET_ACCESS_KEY=testing
     ports:
-      - "5050:5000"
-    env_file:
-      - .env
+      - "4566:4566"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/moto-api/"]
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
       interval: 5s
       timeout: 5s
       retries: 5
       start_period: 10s
-    develop:
-      watch:
-        - action: rebuild
-          path: ./pyproject.toml
