@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2.10.4",
     "moto[server,sqs]>=5.0.26",
     "celery[sqs]>=5.4.0",
+    "sqlalchemy>=2.0.0",
 ]
 
 [dependency-groups]

@@ -12,5 +12,6 @@ BROKER_URL = f"sqs://@{BROKER_HOST}{BROKER_PORT}"
 IS_SECURE = parsed_endpoint.scheme == "https"
 
 QUEUE_NAME = "celery"
-DEAD_LETTER_QUEUE_NAME = "celery-dead-letter-queue"
-MAX_RECEIVE_COUNT = 3
+
+# Result Backend (SQLite)
+RESULT_BACKEND = os.getenv("RESULT_BACKEND", "db+sqlite:///data/celery_results.db")

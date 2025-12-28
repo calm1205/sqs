@@ -1,16 +1,15 @@
-import json
 import os
 from urllib.parse import urlparse
 
 import boto3
 from celery import Celery
 
+from models import init_db
+
 SQS_ENDPOINT = os.getenv("SQS_ENDPOINT", "http://sqs:4566")
 AWS_REGION = os.getenv("AWS_REGION", "ap-northeast-1")
-AWS_ACCOUNT_ID = os.getenv("AWS_ACCOUNT_ID", "000000000000")
 QUEUE_NAME = os.getenv("QUEUE_NAME", "celery")
-DEAD_LETTER_QUEUE_NAME = os.getenv("DEAD_LETTER_QUEUE_NAME", "celery-dead-letter-queue")
-MAX_RECEIVE_COUNT = int(os.getenv("MAX_RECEIVE_COUNT", "3"))
+RESULT_BACKEND = os.getenv("RESULT_BACKEND", "db+sqlite:///data/celery_results.db")
 
 parsed_endpoint = urlparse(SQS_ENDPOINT)
 broker_host = parsed_endpoint.hostname or "sqs"
@@ -26,32 +25,15 @@ sqs_client = boto3.client(
 
 
 def ensure_queues() -> str:
-    """LocalStack上にキュー（DLQ含む）を用意し、URLを返す。"""
-    dead_letter_queue_response = sqs_client.create_queue(
-        QueueName=DEAD_LETTER_QUEUE_NAME
-    )
-    dead_letter_queue_url = dead_letter_queue_response["QueueUrl"]
-    dead_letter_queue_attrs = sqs_client.get_queue_attributes(
-        QueueUrl=dead_letter_queue_url,
-        AttributeNames=["QueueArn"],
-    )
-    dead_letter_queue_arn = dead_letter_queue_attrs["Attributes"]["QueueArn"]
-
-    queue_response = sqs_client.create_queue(
-        QueueName=QUEUE_NAME,
-        Attributes={
-            "RedrivePolicy": json.dumps(
-                {
-                    "deadLetterTargetArn": dead_letter_queue_arn,
-                    "maxReceiveCount": str(MAX_RECEIVE_COUNT),
-                }
-            )
-        },
-    )
+    """LocalStack上にキューを用意し、URLを返す。"""
+    queue_response = sqs_client.create_queue(QueueName=QUEUE_NAME)
     return queue_response["QueueUrl"]
 
 
 QUEUE_URL = ensure_queues()
+
+# カスタムテーブルの初期化
+init_db()
 
 app = Celery("worker")
 
@@ -66,6 +48,7 @@ app.conf.update(
             }
         },
     },
+    result_backend=RESULT_BACKEND,
     task_default_queue="celery",
     task_serializer="json",
     accept_content=["json"],
@@ -74,4 +57,5 @@ app.conf.update(
     enable_utc=True,
     worker_prefetch_multiplier=1,
     task_acks_late=True,
+    imports=["tasks"],
 )

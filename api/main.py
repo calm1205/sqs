@@ -1,12 +1,12 @@
-import json
 from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 
 from celery_client import celery_app
-from schemas import TaskRequest
-from sqs import get_dead_letter_queue_url, setup_queues, sqs_client
+from models import get_job_result
+from schemas import ReportRequest
+from sqs import setup_queues
 
 
 @asynccontextmanager
@@ -25,112 +25,38 @@ async def health_check() -> dict[str, str]:
     return {"status": "healthy"}
 
 
-@app.post("/tasks")
-async def create_task(request: TaskRequest) -> dict[str, str]:
-    """Celeryタスクを作成してキューに送信する。"""
+@app.post("/reports")
+async def create_report(request: ReportRequest) -> dict[str, str]:
+    """レポート生成タスクを作成してキューに送信する。"""
     try:
-        result = celery_app.send_task("tasks.process_task", args=[request.payload])
+        result = celery_app.send_task(
+            "tasks.generate_report",
+            args=[request.report_type.value, request.format.value],
+        )
         return {
-            "message": "Task created",
+            "message": "Report generation started",
             "task_id": result.id,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/tasks/{task_id}")
-async def get_task_status(task_id: str) -> dict[str, Any]:
-    """タスクの進捗状況を取得する。
+@app.get("/reports/{task_id}")
+async def get_report_status(task_id: str) -> dict[str, Any]:
+    """レポート生成タスクの進捗状況を取得する（カスタムテーブルから）。"""
+    job = get_job_result(task_id)
+    if job:
+        return {
+            "task_id": job.task_id,
+            "status": job.status,
+            "result": job.result,
+            "created_at": job.created_at.isoformat() if job.created_at else None,
+            "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+        }
 
-    Note: Result backendが未設定の場合、ステータスは常にPENDINGとなる。
-    """
+    # カスタムテーブルにない場合はCeleryのステータスを確認
     result = celery_app.AsyncResult(task_id)
-    response: dict[str, Any] = {
+    return {
         "task_id": task_id,
         "status": result.status,
     }
-    try:
-        if result.ready():
-            if result.successful():
-                response["result"] = result.result
-            else:
-                response["error"] = str(result.result)
-    except AttributeError:
-        # Result backendが無効な場合
-        response["note"] = "Result backend is not configured"
-    return response
-
-
-@app.get("/dead_letter_queue")
-async def list_dead_letter_queue_messages() -> dict[str, Any]:
-    """Dead Letter Queue内のメッセージ一覧を取得する。"""
-    try:
-        dead_letter_queue_url = get_dead_letter_queue_url()
-
-        # メッセージを取得（最大10件、削除はしない）
-        response = sqs_client.receive_message(
-            QueueUrl=dead_letter_queue_url,
-            MaxNumberOfMessages=10,
-            VisibilityTimeout=0,  # すぐに再取得可能にする
-            AttributeNames=["All"],
-        )
-
-        messages = response.get("Messages", [])
-        return {
-            "count": len(messages),
-            "messages": [
-                {
-                    "message_id": msg["MessageId"],
-                    "body": msg["Body"],
-                    "receive_count": msg.get("Attributes", {}).get(
-                        "ApproximateReceiveCount", "0"
-                    ),
-                }
-                for msg in messages
-            ],
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/dead_letter_queue/reprocess")
-async def reprocess_dead_letter_queue_messages() -> dict[str, Any]:
-    """Dead Letter Queue内の全メッセージをメインキューに再送信する。"""
-    try:
-        dead_letter_queue_url = get_dead_letter_queue_url()
-
-        reprocessed = 0
-        while True:
-            # Dead Letter Queueからメッセージを取得
-            response = sqs_client.receive_message(
-                QueueUrl=dead_letter_queue_url,
-                MaxNumberOfMessages=10,
-                VisibilityTimeout=30,
-            )
-
-            messages = response.get("Messages", [])
-            if not messages:
-                break
-
-            for msg in messages:
-                # メッセージ本文からCeleryタスクのペイロードを抽出して再実行
-                body = json.loads(msg["Body"])
-                task_args = body.get("args", [])
-                task_name = body.get("task", "tasks.process_task")
-
-                # タスクを再送信
-                celery_app.send_task(task_name, args=task_args)
-
-                # Dead Letter Queueからメッセージを削除
-                sqs_client.delete_message(
-                    QueueUrl=dead_letter_queue_url,
-                    ReceiptHandle=msg["ReceiptHandle"],
-                )
-                reprocessed += 1
-
-        return {
-            "message": "Dead letter queue messages reprocessed",
-            "reprocessed_count": reprocessed,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

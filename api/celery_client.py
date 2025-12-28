@@ -1,6 +1,12 @@
 from celery import Celery
-
-from config import AWS_ACCOUNT_ID, AWS_REGION, BROKER_URL, IS_SECURE, SQS_ENDPOINT
+from config import (
+    AWS_ACCOUNT_ID,
+    AWS_REGION,
+    BROKER_URL,
+    IS_SECURE,
+    RESULT_BACKEND,
+    SQS_ENDPOINT,
+)
 
 celery_app = Celery("worker")
 celery_app.conf.update(
@@ -14,5 +20,8 @@ celery_app.conf.update(
             }
         },
     },
+    result_backend=RESULT_BACKEND,
     task_default_queue="celery",
+    result_serializer="json",
+    accept_content=["json"],
 )

@@ -7,4 +7,4 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv venv && uv sync --frozen --no-dev
 
-COPY worker/main.py worker/tasks.py ./
+COPY worker/main.py worker/tasks.py worker/models.py ./

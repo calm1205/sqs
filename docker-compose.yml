@@ -8,6 +8,8 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    volumes:
+      - celery-data:/app/data
     depends_on:
       sqs:
         condition: service_healthy
@@ -28,6 +30,8 @@ services:
     command: uv run celery -A main worker --loglevel=info
     env_file:
       - .env
+    volumes:
+      - celery-data:/app/data
     depends_on:
       sqs:
         condition: service_healthy
@@ -58,3 +62,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+volumes:
+  celery-data:
