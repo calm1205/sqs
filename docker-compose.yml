@@ -45,7 +45,9 @@ services:
           path: ./pyproject.toml
 
   sqs:
-    image: localstack/localstack:latest
+    build:
+      context: .
+      dockerfile: sqs/Dockerfile
     env_file:
       - .env
     ports:
