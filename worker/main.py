@@ -7,8 +7,6 @@ from celery import Celery
 
 SQS_ENDPOINT = os.getenv("SQS_ENDPOINT", "http://sqs:4566")
 AWS_REGION = os.getenv("AWS_REGION", "ap-northeast-1")
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "testing")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "testing")
 AWS_ACCOUNT_ID = os.getenv("AWS_ACCOUNT_ID", "000000000000")
 QUEUE_NAME = os.getenv("QUEUE_NAME", "celery")
 DEAD_LETTER_QUEUE_NAME = os.getenv("DEAD_LETTER_QUEUE_NAME", "celery-dead-letter-queue")
@@ -18,16 +16,12 @@ parsed_endpoint = urlparse(SQS_ENDPOINT)
 broker_host = parsed_endpoint.hostname or "sqs"
 broker_port = f":{parsed_endpoint.port}" if parsed_endpoint.port else ""
 is_secure = parsed_endpoint.scheme == "https"
-broker_url = (
-    f"sqs://{AWS_ACCESS_KEY_ID}:{AWS_SECRET_ACCESS_KEY}@{broker_host}{broker_port}"
-)
+broker_url = f"sqs://@{broker_host}{broker_port}"
 
 sqs_client = boto3.client(
     "sqs",
     endpoint_url=SQS_ENDPOINT,
     region_name=AWS_REGION,
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
 )
 
 
@@ -66,8 +60,6 @@ app.conf.update(
     broker_transport_options={
         "region": AWS_REGION,
         "is_secure": is_secure,
-        "aws_access_key_id": AWS_ACCESS_KEY_ID,
-        "aws_secret_access_key": AWS_SECRET_ACCESS_KEY,
         "predefined_queues": {
             "celery": {
                 "url": QUEUE_URL,

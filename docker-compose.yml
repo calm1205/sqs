@@ -6,12 +6,6 @@ services:
     command: uv run uvicorn main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
-    environment:
-      - SQS_ENDPOINT=http://sqs:4566
-      - AWS_REGION=ap-northeast-1
-      - AWS_ACCESS_KEY_ID=testing
-      - AWS_SECRET_ACCESS_KEY=testing
-      - AWS_ACCOUNT_ID=000000000000
     env_file:
       - .env
     depends_on:
@@ -20,8 +14,10 @@ services:
     develop:
       watch:
         - action: sync
-          path: ./api/main.py
-          target: /app/main.py
+          path: ./api
+          target: /app
+          ignore:
+            - Dockerfile
         - action: rebuild
           path: ./pyproject.toml
 
@@ -29,13 +25,7 @@ services:
     build:
       context: .
       dockerfile: worker/Dockerfile
-    command: uv run celery -A celery_app worker --loglevel=info
-    environment:
-      - SQS_ENDPOINT=http://sqs:4566
-      - AWS_REGION=ap-northeast-1
-      - AWS_ACCESS_KEY_ID=testing
-      - AWS_SECRET_ACCESS_KEY=testing
-      - AWS_ACCOUNT_ID=000000000000
+    command: uv run celery -A main worker --loglevel=info
     env_file:
       - .env
     depends_on:
@@ -46,8 +36,8 @@ services:
     develop:
       watch:
         - action: sync
-          path: ./worker/celery_app.py
-          target: /app/celery_app.py
+          path: ./worker/main.py
+          target: /app/main.py
         - action: sync
           path: ./worker/tasks.py
           target: /app/tasks.py
@@ -56,11 +46,8 @@ services:
 
   sqs:
     image: localstack/localstack:latest
-    environment:
-      - SERVICES=sqs
-      - DEFAULT_REGION=ap-northeast-1
-      - AWS_ACCESS_KEY_ID=testing
-      - AWS_SECRET_ACCESS_KEY=testing
+    env_file:
+      - .env
     ports:
       - "4566:4566"
     healthcheck:

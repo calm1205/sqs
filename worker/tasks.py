@@ -1,8 +1,7 @@
 import time
 
 from celery import Task
-
-from celery_app import app
+from main import app
 
 
 @app.task(bind=True)
