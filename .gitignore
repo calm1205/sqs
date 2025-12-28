@@ -16,12 +16,6 @@ build/
 venv/
 ENV/
 
-# IDE
-.idea/
-.vscode/
-.serena/
-*.swp
-*.swo
 
 # Environment variables
 .env

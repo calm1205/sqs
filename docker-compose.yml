@@ -8,6 +8,9 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      # ローカルのmoto(SQS)を使うためのエンドポイントを明示
+      SQS_ENDPOINT: ${SQS_ENDPOINT:-http://sqs:5000}
     depends_on:
       sqs:
         condition: service_healthy
@@ -27,7 +30,8 @@ services:
     env_file:
       - .env
     environment:
-      - AWS_ENDPOINT_URL=http://sqs:5000
+      # ローカルのmoto(SQS)を使うためのエンドポイントを明示
+      SQS_ENDPOINT: ${SQS_ENDPOINT:-http://sqs:5000}
     depends_on:
       sqs:
         condition: service_healthy
