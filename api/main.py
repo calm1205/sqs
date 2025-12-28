@@ -66,6 +66,10 @@ celery_app.conf.update(
     broker_url="sqs://@",
     broker_transport_options={
         "region": AWS_REGION,
+        "is_secure": False,
+        "endpoint_url": SQS_ENDPOINT,
+        "aws_access_key_id": "testing",
+        "aws_secret_access_key": "testing",
         "predefined_queues": {
             "celery": {
                 "url": f"{SQS_ENDPOINT}/000000000000/celery",

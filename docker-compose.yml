@@ -26,9 +26,13 @@ services:
     command: uv run celery -A celery_app worker --loglevel=info
     env_file:
       - .env
+    environment:
+      - AWS_ENDPOINT_URL=http://sqs:5000
     depends_on:
       sqs:
         condition: service_healthy
+      api:
+        condition: service_started
     develop:
       watch:
         - action: sync
